@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Pedido - Controle Interno</title>
+    <style>
+        /* --- Estilos de Layout (CSS) --- */
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
+        .container { width: 90%; max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); }
+        h1, h2 { color: #d9534f; text-align: center; }
+        .product-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background-color: #fff; }
+        .product-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+        .product-item:last-child { border-bottom: none; }
+        .product-details { flex-grow: 1; }
+        .product-details h4 { margin: 0 0 5px 0; color: #333; }
+        .price-control { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+        .price-control input { width: 84px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .reset-prices-button { margin-top: 12px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer; }
+        .reset-prices-button:hover { background: #f4f4f4; }
+        
+        .product-image {
+            width: 60px;
+            height: 60px;
+            margin-right: 15px;
+            overflow: hidden;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            flex-shrink: 0;
+        }
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .quantity-control { display: flex; align-items: center; min-width: 100px; }
+        .quantity-control input[type="number"] { 
+            width: 45px; 
+            padding: 5px; 
+            text-align: center; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            margin-left: 10px; 
+            -moz-appearance: textfield;
+        }
+        .quantity-control input[type="number"]::-webkit-outer-spin-button,
+        .quantity-control input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .internal-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        #client-info-section input[type="text"], #client-info-section select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        /* --- Estilos de Abas e Resumo --- */
+        #quote-summary { padding: 20px; margin-top: 30px; border: 2px solid #5cb85c; border-radius: 6px; background-color: #eaf8e7; }
+        #quote-summary h3 { margin-top: 0; color: #5cb85c; text-align: center; }
+        .tab-buttons { display: flex; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+        .tab-buttons button { background-color: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; margin: 5px; border-radius: 5px; opacity: 0.7; }
+        .tab-buttons button.active { opacity: 1; background-color: #0056b3; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #quote-output, #separation-output, #pedidos-content { 
+            white-space: pre-wrap; 
+            background-color: #fff; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            min-height: 100px; 
+            margin-bottom: 15px; 
+            font-size: 1.1em; 
+            line-height: 1.6; 
+            overflow-x: auto;
+        }
+        
+        #logistics-total-container { 
+            background-color: #f0ad4e;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        #logistics-total-container strong {
+            font-size: 1.5em;
+        }
+        
+        .action-buttons { text-align: center; margin-top: 20px; }
+        .action-buttons button { background-color: #5cb85c; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 5px; transition: background-color 0.3s; }
+        .action-buttons button:hover { background-color: #4cae4c; }
+
+        .action-buttons button:nth-child(2) { background-color: #007bff; }
+        .action-buttons button:nth-child(2):hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gerador de Pedido com Controle Interno</h1>
+    <p style="text-align: center;">Preencha os dados e gerencie pedidos e estoque.</p>
+
+    <div id="client-info-section" class="product-section" style="border-color: #d9534f;">
+        <h2>Dados da Venda</h2>
+        <div class="internal-inputs">
+            <input type="text" id="clientName" placeholder="Nome do Cliente" required>
+            <input type="text" id="clientPhone" placeholder="Telefone/WhatsApp">
+            <input type="text" id="clientSeller" placeholder="Seu Nome / Vendedor" required>
+            <select id="paymentMethod" required>
+                <option value="" disabled selected>Forma de Pagamento</option>
+                <option value="Pix">Pix</option>
+                <option value="Credito">Cartão de Crédito</option>
+                <option value="Debito">Cartão de Débito</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Boleto">Boleto (a prazo)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="product-section">
+        <h2>Produtos</h2>
+        <h3>🧹 Vassouras</h3>
+        <div id="vassouras-list"></div>
+        <h3>🪠 Rodos</h3>
+        <div id="rodos-list"></div>
+        <h3>🏭 Linha Industrial</h3>
+        <div id="industrial-list"></div>
+        <button type="button" class="reset-prices-button" onclick="resetProductPrices()">Restaurar preços originais</button>
+    </div>
+
+    <div class="action-buttons">
+        <button onclick="saveAndFinalizeOrder('financeiro')">💾 Salvar e Copiar Resumo de Venda</button>
+        <button onclick="saveAndFinalizeOrder('separacao')">📦 Salvar e Copiar Resumo de Separação</button>
+        <button onclick="sendWhatsApp()">📱 Enviar Resumo de Separação (WhatsApp)</button>
+    </div>
+    
+    <div id="quote-summary">
+        <h3>Visões Internas</h3>
+
+        <div class="tab-buttons">
+            <button class="active" onclick="showTab('financeiro', this)">📈 Venda/Financeiro</button>
+            <button onclick="showTab('separacao', this)">📦 Separação/Estoque</button>
+            <button onclick="showTab('pedidos-historico', this)">📝 Pedidos Salvos</button>
+        </div>
+
+        <div id="financeiro" class="tab-content active">
+             <div id="quote-output">
+                Selecione os itens e preencha os dados da venda.
+            </div>
+        </div>
+
+        <div id="separacao" class="tab-content">
+            <div id="logistics-total-container">
+                TOTAL DE ITENS VENDIDOS: <strong id="logistics-total-count">0</strong>
+            </div>
+            <div id="separation-output">
+                Selecione os itens e preencha os dados da venda.
+            </div>
+        </div>
+        
+        <div id="pedidos-historico" class="tab-content">
+            <h3>Histórico de Pedidos Salvos</h3>
+            <div id="pedidos-content">
+                Nenhum pedido encontrado.
+            </div>
+            <div class="action-buttons" style="margin-top: 10px;">
+                <button style="background-color: #f44336; padding: 10px 20px; font-size: 14px;" onclick="clearAllOrders()">🗑️ Limpar Histórico (ATENÇÃO)</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- LISTA DE PRODUTOS COMPLETA COM SEUS PREÇOS ---
+    const products = {
+        'vassouras-list': [
+            { id: 'v1', name: 'Vassoura Piaçava P', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'v2', name: 'Vassoura Piaçava M', price: 12.50, imgUrl: 'https://placeholder.com' },
+            { id: 'v3', name: 'Vassoura Piaçava G', price: 15.00, imgUrl: 'https://placeholder.com' },
+            { id: 'v4', name: 'Vassoura Nylon Macia', price: 9.90, imgUrl: 'https://placeholder.com' },
+            { id: 'v5', name: 'Vassoura Nylon Dura', price: 11.00, imgUrl: 'https://placeholder.com' }
+        ],
+        'rodos-list': [
+            { id: 'r1', name: 'Rodo Plástico 30cm', price: 5.50, imgUrl: 'https://placeholder.com' },
+            { id: 'r2', name: 'Rodo Plástico 40cm', price: 7.00, imgUrl: 'https://placeholder.com' },
+            { id: 'r3', name: 'Rodo Alumínio 40cm', price: 14.00, imgUrl: 'https://placeholder.com' },
+            { id: 'r4', name: 'Rodo Alumínio 60cm', price: 19.50, imgUrl: 'https://placeholder.com' }
+        ],
+        'industrial-list': [
+            { id: 'i1', name: 'Vassourão de Rua 50cm', price: 25.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i2', name: 'Mop Pó Completo 60cm', price: 45.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i3', name: 'Mop Água Refil', price: 18.00, imgUrl: 'https://placeholder.com' }
+        ]
+    };
+
+    const defaultProductPrices = Object.fromEntries(
+        Object.values(products).flat().map(product => [product.id, product.price])
+    );
+    const productPricesStorageKey = 'gerador-precos-vassouras';
+
+    function loadProductPrices() {
+        try {
+            const savedPrices = JSON.parse(localStorage.getItem(productPricesStorageKey) || '{}');
+            Object.values(products).flat().forEach(product => {
+                const savedPrice = Number(savedPrices[product.id]);
+                if (Number.isFinite(savedPrice) && savedPrice >= 0) product.price = savedPrice;
+            });
+        } catch (error) {
+            // Mantém os preços originais se o armazenamento estiver indisponível.
+        }
+    }
+
+    loadProductPrices();
+
+    let accumulatedStock = {};
+
+    // --- FUNÇÃO PARA INJETAR OS PRODUTOS NA TELA ---
+    function renderProducts() {
+        for (const [listId, items] of Object.entries(products)) {
+            const container = document.getElementById(listId);
+            if (!container) continue;
+            
+            container.innerHTML = items.map(product => `
+                <div class="product-item">
+                    <div class="product-image">
+                        <img src="${product.imgUrl}" alt="${product.name}">
+                    </div>
+                    <div class="product-details">
+                        <h4>${product.name}</h4>
+                        <div class="price-control">
+                            <label for="price-${product.id}">Preço unitário (R$):</label>
+                            <input type="number" id="price-${product.id}" min="0" step="0.01" value="${product.price.toFixed(2)}" onchange="updateProductPrice('${product.id}', this.value)">
+                        </div>
+                    </div>
+                    <div class="quantity-control">
+                        <label for="qty-${product.id}">Qtd:</label>
+                        <input type="number" id="qty-${product.id}" min="0" value="0" onchange="updateQuote()">
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    renderProducts();
+
+    const ordersStorageKey = 'gerador-pedidos-vassouras';
+
+    function updateProductPrice(productId, value) {
+        const product = Object.values(products).flat().find(item => item.id === productId);
+        const newPrice = Number(value);
+        if (!product) return;
+        if (value.trim() === '' || !Number.isFinite(newPrice) || newPrice < 0) {
+            document.getElementById(`price-${productId}`).value = product.price.toFixed(2);
+            alert('Informe um preço válido, igual ou maior que zero.');
+            return;
+        }
+
+        product.price = Math.round(newPrice * 100) / 100;
+        document.getElementById(`price-${productId}`).value = product.price.toFixed(2);
+        try {
+            localStorage.setItem(productPricesStorageKey, JSON.stringify(
+                Object.fromEntries(Object.values(products).flat().map(item => [item.id, item.price]))
+            ));
+        } catch (error) {
+            alert('O preço foi alterado nesta página, mas não foi possível salvá-lo para as próximas visitas.');
+        }
+        updateQuote();
+    }
+
+    function resetProductPrices() {
+        if (!confirm('Restaurar os preços originais de todos os produtos?')) return;
+        Object.values(products).flat().forEach(product => {
+            product.price = defaultProductPrices[product.id];
+            document.getElementById(`price-${product.id}`).value = product.price.toFixed(2);
+        });
+        try {
+            localStorage.removeItem(productPricesStorageKey);
+        } catch (error) {
+            alert('Os preços foram restaurados nesta página, mas não foi possível atualizar o armazenamento.');
+        }
+        updateQuote();
+    }
+
+    function getSelectedItems() {
+        return Object.values(products).flat().map(product => ({
+            ...product,
+            quantity: Math.max(0, Number.parseInt(document.getElementById(`qty-${product.id}`).value, 10) || 0)
+        })).filter(product => product.quantity > 0);
+    }
+
+    function formatCurrency(value) {
+        return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function buildOrder() {
+        const items = getSelectedItems();
+        const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
+        const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const payment = document.getElementById('paymentMethod');
+
+        return {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            date: new Date().toISOString(),
+            client: document.getElementById('clientName').value.trim(),
+            phone: document.getElementById('clientPhone').value.trim(),
+            seller: document.getElementById('clientSeller').value.trim(),
+            payment: payment.value ? payment.options[payment.selectedIndex].text : '',
+            items,
+            totalQuantity,
+            total
+        };
+    }
+
+    function getFinancialSummary(order) {
+        const itemLines = order.items.map(item =>
+            `${item.quantity}x ${item.name} - ${formatCurrency(item.price * item.quantity)}`
+        );
+
+        return [
+            'RESUMO DA VENDA',
+            `Cliente: ${order.client || '-'}`,
+            `Telefone: ${order.phone || '-'}`,
+            `Vendedor: ${order.seller || '-'}`,
+            `Pagamento: ${order.payment || '-'}`,
+            '',
+            ...itemLines,
+            '',
+            `Total de itens: ${order.totalQuantity}`,
+            `Total da venda: ${formatCurrency(order.total)}`
+        ].join('\n');
+    }
+
+    function formatDozenQuantity(quantity) {
+        const dozens = Math.floor(quantity / 12);
+        const units = quantity % 12;
+        const dozenText = `${dozens} ${dozens === 1 ? 'dúzia' : 'dúzias'}`;
+        const unitText = `${units} ${units === 1 ? 'unidade' : 'unidades'}`;
+
+        if (dozens && units) return `${dozenText} + ${unitText} (${quantity} unidades)`;
+        if (dozens) return `${dozenText} (${quantity} unidades)`;
+        return unitText;
+    }
+
+    function getSeparationSummary(order) {
+        return [
+            'RESUMO DE SEPARAÇÃO',
+            `Cliente: ${order.client || '-'}`,
+            '',
+            ...order.items.map(item => `${formatDozenQuantity(item.quantity)} - ${item.name}`),
+            '',
+            `Total geral: ${formatDozenQuantity(order.totalQuantity)}`
+        ].join('\n');
+    }
+
+    function getAccumulatedStockSummary(savedOrders) {
+        const stockByProduct = new Map();
+
+        savedOrders.forEach(order => {
+            (order.items || []).forEach(item => {
+                const stockItem = stockByProduct.get(item.id) || { name: item.name, quantity: 0 };
+                stockItem.quantity += Number(item.quantity) || 0;
+                stockByProduct.set(item.id, stockItem);
+            });
+        });
+
+        const stockItems = [...stockByProduct.values()].filter(item => item.quantity > 0);
+        const totalQuantity = stockItems.reduce((total, item) => total + item.quantity, 0);
+        const stockLines = stockItems.map(item =>
+            `${formatDozenQuantity(item.quantity)} - ${item.name}`
+        );
+
+        return {
+            summary: stockItems.length
+                ? ['ESTOQUE ACUMULADO', '', ...stockLines, '', `Total geral: ${formatDozenQuantity(totalQuantity)}`].join('\n')
+                : 'Nenhum item vendido ainda.',
+            totalQuantity
+        };
+    }
+
+    function updateQuote() {
+        const order = buildOrder();
+        const emptyMessage = 'Selecione os itens e preencha os dados da venda.';
+
+        document.getElementById('quote-output').textContent = order.items.length
+            ? getFinancialSummary(order)
+            : emptyMessage;
+        renderAccumulatedStock();
+    }
+
+    function renderAccumulatedStock() {
+        const stock = getAccumulatedStockSummary(getSavedOrders());
+        document.getElementById('separation-output').textContent = stock.summary;
+        document.getElementById('logistics-total-count').textContent = stock.totalQuantity;
+    }
+
+    async function copyText(text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (error) {
+            // Usa a alternativa compatível com páginas abertas via arquivo local.
+        }
+
+        const temporaryInput = document.createElement('textarea');
+        temporaryInput.value = text;
+        temporaryInput.style.position = 'fixed';
+        temporaryInput.style.opacity = '0';
+        document.body.appendChild(temporaryInput);
+        temporaryInput.select();
+        const copied = document.execCommand('copy');
+        temporaryInput.remove();
+        return copied;
+    }
+
+    function getSavedOrders() {
+        try {
+            return JSON.parse(localStorage.getItem(ordersStorageKey) || '[]');
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function saveOrder(order) {
+        const savedOrders = getSavedOrders();
+        savedOrders.unshift(order);
+        localStorage.setItem(ordersStorageKey, JSON.stringify(savedOrders));
+        renderOrderHistory();
+    }
+
+    function validateOrder(order) {
+        if (!order.client || !order.seller || !order.payment) {
+            alert('Preencha o nome do cliente, o vendedor e a forma de pagamento.');
+            return false;
+        }
+        if (!order.items.length) {
+            alert('Informe a quantidade de pelo menos um produto.');
+            return false;
+        }
+        return true;
+    }
+
+    async function saveAndFinalizeOrder(type) {
+        const order = buildOrder();
+        if (!validateOrder(order)) return;
+
+        try {
+            saveOrder(order);
+        } catch (error) {
+            alert('Não foi possível salvar o pedido neste navegador. Verifique o armazenamento local.');
+            return;
+        }
+
+        const summary = type === 'separacao'
+            ? getSeparationSummary(order)
+            : getFinancialSummary(order);
+        const copied = await copyText(summary);
+        alert(copied
+            ? 'Pedido salvo e resumo copiado.'
+            : 'Pedido salvo, mas não foi possível copiar o resumo.');
+    }
+
+    function sendWhatsApp() {
+        const order = buildOrder();
+        if (!validateOrder(order)) return;
+
+        let phone = order.phone.replace(/\D/g, '');
+        if (phone && (phone.length < 10 || phone.length > 13)) {
+            alert('Confira o telefone/WhatsApp. Informe o DDD e o número.');
+            return;
+        }
+        if (phone && phone.length <= 11) phone = `55${phone}`;
+
+        const recipient = phone ? `/${phone}` : '/';
+        const url = `https://wa.me${recipient}?text=${encodeURIComponent(getSeparationSummary(order))}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function renderOrderHistory() {
+        const historyContainer = document.getElementById('pedidos-content');
+        const savedOrders = getSavedOrders();
+        renderAccumulatedStock();
+
+        if (!savedOrders.length) {
+            historyContainer.textContent = 'Nenhum pedido encontrado.';
+            return;
+        }
+
+        historyContainer.textContent = savedOrders.map(order => {
+            const date = new Date(order.date).toLocaleString('pt-BR');
+            return [
+                `Pedido de ${date}`,
+                `Cliente: ${order.client} | Vendedor: ${order.seller}`,
+                ...order.items.map(item => `${item.quantity}x ${item.name}`),
+                `Total: ${formatCurrency(order.total)}`
+            ].join('\n');
+        }).join('\n\n--------------------\n\n');
+    }
+
+    function clearAllOrders() {
+        if (!confirm('Deseja apagar todos os pedidos salvos neste navegador?')) return;
+        localStorage.removeItem(ordersStorageKey);
+        renderOrderHistory();
+    }
+
+    function showTab(tabId, button) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-buttons button').forEach(tabButton => tabButton.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        button.classList.add('active');
+        if (tabId === 'pedidos-historico') renderOrderHistory();
+    }
+
+    document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
+        input.addEventListener('input', updateQuote);
+        input.addEventListener('change', updateQuote);
+    });
+
+    updateQuote();
+    renderOrderHistory();
+</script>
+</body>
+</html>
