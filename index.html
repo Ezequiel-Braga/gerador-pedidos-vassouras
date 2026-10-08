@@ -131,6 +131,8 @@
         <div id="rodos-list"></div>
         <h3>🏭 Linha Industrial</h3>
         <div id="industrial-list"></div>
+        <h3>🧽 Outros</h3>
+        <div id="outros-list"></div>
         <button type="button" class="reset-prices-button" onclick="resetProductPrices()">Restaurar preços originais</button>
     </div>
 
@@ -187,39 +189,72 @@
     // --- LISTA DE PRODUTOS COMPLETA COM SEUS PREÇOS ---
     const products = {
         'vassouras-list': [
-            { id: 'v1', name: 'Vassoura Piaçava P', price: 10.00, imgUrl: 'https://placeholder.com' },
-            { id: 'v2', name: 'Vassoura Piaçava M', price: 12.50, imgUrl: 'https://placeholder.com' },
-            { id: 'v3', name: 'Vassoura Piaçava G', price: 15.00, imgUrl: 'https://placeholder.com' },
-            { id: 'v4', name: 'Vassoura Nylon Macia', price: 9.90, imgUrl: 'https://placeholder.com' },
-            { id: 'v5', name: 'Vassoura Nylon Dura', price: 11.00, imgUrl: 'https://placeholder.com' }
+            { id: 'v1', name: 'Vassoura Piaçava Capa P', price: 7.08, imgUrl: 'https://placeholder.com' },
+            { id: 'v2', name: 'Vassoura Piaçava 16 Furos', price: 7.91, imgUrl: 'https://placeholder.com' },
+            { id: 'v3', name: 'Vassoura Piaçava Capa G', price: 8.33, imgUrl: 'https://placeholder.com' },
+            { id: 'v6', name: 'Vassoura Piaçava 20 Furos', price: 8.75, imgUrl: 'https://placeholder.com' },
+            { id: 'v7', name: 'Vassoura Cipó 16 Furos', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'v4', name: 'Vassoura Nylon 16 Furos', price: 9.16, imgUrl: 'https://placeholder.com' },
+            { id: 'v5', name: 'Vassoura Nylon Capa P', price: 8.33, imgUrl: 'https://placeholder.com' }
         ],
         'rodos-list': [
-            { id: 'r1', name: 'Rodo Plástico 30cm', price: 5.50, imgUrl: 'https://placeholder.com' },
-            { id: 'r2', name: 'Rodo Plástico 40cm', price: 7.00, imgUrl: 'https://placeholder.com' },
-            { id: 'r3', name: 'Rodo Alumínio 40cm', price: 14.00, imgUrl: 'https://placeholder.com' },
-            { id: 'r4', name: 'Rodo Alumínio 60cm', price: 19.50, imgUrl: 'https://placeholder.com' }
+            { id: 'r1', name: 'Rodo Plástico 30cm', price: 6.66, imgUrl: 'https://placeholder.com' },
+            { id: 'r2', name: 'Rodo Plástico 40cm', price: 7.08, imgUrl: 'https://placeholder.com' },
+            { id: 'r4', name: 'Rodo Plástico 60cm', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'r3', name: 'Rodo Alumínio 40cm', price: 14.00, imgUrl: 'https://placeholder.com' }
         ],
         'industrial-list': [
-            { id: 'i1', name: 'Vassourão de Rua 50cm', price: 25.00, imgUrl: 'https://placeholder.com' },
-            { id: 'i2', name: 'Mop Pó Completo 60cm', price: 45.00, imgUrl: 'https://placeholder.com' },
-            { id: 'i3', name: 'Mop Água Refil', price: 18.00, imgUrl: 'https://placeholder.com' }
+            { id: 'i4', name: 'Varre Kanto', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i5', name: 'Reta Colorida', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i6', name: 'Reta Preta e branca', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i7', name: 'Escovão', price: 10.00, imgUrl: 'https://placeholder.com' },
+            { id: 'i8', name: 'Rastelo 18D', price: 10.83, imgUrl: 'https://placeholder.com' },
+            { id: 'i9', name: 'Super dalia', price: 18.33, imgUrl: 'https://placeholder.com' }
+        ],
+        'outros-list': [
+            { id: 'o1', name: 'Pá c/ cabo', price: 6.66, imgUrl: 'https://placeholder.com' },
+            { id: 'o2', name: 'Espanador de mão piaçava', price: 4.16, imgUrl: 'https://placeholder.com' },
+            { id: 'o3', name: 'Espanador de mão nylon', price: 5.00, imgUrl: 'https://placeholder.com' },
+            { id: 'o4', name: 'Espanador de teto', price: 12.50, imgUrl: 'https://placeholder.com' },
+            { id: 'o5', name: 'Pá de mão', price: 3.33, imgUrl: 'https://placeholder.com' },
+            { id: 'o6', name: 'Escova oval madeira', price: 3.33, imgUrl: 'https://placeholder.com' },
+            { id: 'o7', name: 'Escova oval plastico', price: 3.33, imgUrl: 'https://placeholder.com' },
+            { id: 'o8', name: 'Escova de unha', price: 3.33, imgUrl: 'https://placeholder.com' }
         ]
     };
 
     const defaultProductPrices = Object.fromEntries(
         Object.values(products).flat().map(product => [product.id, product.price])
     );
-    const productPricesStorageKey = 'gerador-precos-vassouras';
+    const productPricesStorageKey = 'gerador-precos-vassouras-v2';
+    const legacyProductPricesStorageKey = 'gerador-precos-vassouras';
+    const previousDefaultProductPrices = {
+        v1: 10.00, v2: 12.50, v3: 15.00, v4: 9.90, v5: 11.00,
+        r1: 5.50, r2: 7.00, r3: 14.00,
+        i1: 25.00, i2: 45.00, i3: 18.00
+    };
 
     function loadProductPrices() {
         try {
-            const savedPrices = JSON.parse(localStorage.getItem(productPricesStorageKey) || '{}');
+            const currentPrices = localStorage.getItem(productPricesStorageKey);
+            const isLegacyPrices = currentPrices === null;
+            const legacyPrices = isLegacyPrices ? localStorage.getItem(legacyProductPricesStorageKey) : null;
+            const savedPrices = JSON.parse(currentPrices || legacyPrices || '{}');
             Object.values(products).flat().forEach(product => {
                 const savedPrice = Number(savedPrices[product.id]);
-                if (Number.isFinite(savedPrice) && savedPrice >= 0) product.price = savedPrice;
+                const wasPreviousDefault = isLegacyPrices
+                    && savedPrice === previousDefaultProductPrices[product.id];
+                if (Number.isFinite(savedPrice) && savedPrice >= 0 && !wasPreviousDefault) {
+                    product.price = savedPrice;
+                }
             });
+            if (isLegacyPrices && legacyPrices !== null) {
+                localStorage.setItem(productPricesStorageKey, JSON.stringify(
+                    Object.fromEntries(Object.values(products).flat().map(product => [product.id, product.price]))
+                ));
+            }
         } catch (error) {
-            // Mantém os preços originais se o armazenamento estiver indisponível.
+            console.error('Não foi possível carregar ou migrar os preços salvos:', error);
         }
     }
 
