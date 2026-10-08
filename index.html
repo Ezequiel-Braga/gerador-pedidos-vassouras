@@ -18,6 +18,11 @@
         .price-control input { width: 84px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
         .reset-prices-button { margin-top: 12px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer; }
         .reset-prices-button:hover { background: #f4f4f4; }
+        .route-stop { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #ddd; }
+        .route-stop span { overflow-wrap: anywhere; }
+        .route-stop-delivered { color: #777; text-decoration: line-through; }
+        .route-stop button, .route-link { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer; }
+        .route-link { display: inline-block; margin: 12px 8px 0 0; text-decoration: none; }
         
         .product-image {
             width: 60px;
@@ -105,6 +110,7 @@
         <div class="internal-inputs">
             <input type="text" id="clientName" placeholder="Nome do Cliente" required>
             <input type="text" id="clientPhone" placeholder="Telefone/WhatsApp">
+            <input type="text" id="clientAddress" placeholder="Endereço de entrega (rua, número, bairro, cidade)">
             <input type="text" id="clientSeller" placeholder="Seu Nome / Vendedor" required>
             <select id="paymentMethod" required>
                 <option value="" disabled selected>Forma de Pagamento</option>
@@ -141,6 +147,7 @@
             <button class="active" onclick="showTab('financeiro', this)">📈 Venda/Financeiro</button>
             <button onclick="showTab('separacao', this)">📦 Separação/Estoque</button>
             <button onclick="showTab('pedidos-historico', this)">📝 Pedidos Salvos</button>
+            <button onclick="showTab('rotas', this)">🗺️ Rotas</button>
         </div>
 
         <div id="financeiro" class="tab-content active">
@@ -166,6 +173,11 @@
             <div class="action-buttons" style="margin-top: 10px;">
                 <button style="background-color: #f44336; padding: 10px 20px; font-size: 14px;" onclick="clearAllOrders()">🗑️ Limpar Histórico (ATENÇÃO)</button>
             </div>
+        </div>
+
+        <div id="rotas" class="tab-content">
+            <h3>Rota de entregas</h3>
+            <div id="rotas-content">Nenhum pedido com endereço salvo.</div>
         </div>
     </div>
 
@@ -304,6 +316,7 @@
             date: new Date().toISOString(),
             client: document.getElementById('clientName').value.trim(),
             phone: document.getElementById('clientPhone').value.trim(),
+            address: document.getElementById('clientAddress').value.trim(),
             seller: document.getElementById('clientSeller').value.trim(),
             payment: payment.value ? payment.options[payment.selectedIndex].text : '',
             items,
@@ -321,6 +334,7 @@
             'RESUMO DA VENDA',
             `Cliente: ${order.client || '-'}`,
             `Telefone: ${order.phone || '-'}`,
+            ...(order.address ? [`Endereço: ${order.address}`] : []),
             `Vendedor: ${order.seller || '-'}`,
             `Pagamento: ${order.payment || '-'}`,
             '',
@@ -346,6 +360,7 @@
         return [
             'RESUMO DE SEPARAÇÃO',
             `Cliente: ${order.client || '-'}`,
+            ...(order.address ? [`Endereço: ${order.address}`] : []),
             '',
             ...order.items.map(item => `${formatDozenQuantity(item.quantity)} - ${item.name}`),
             '',
@@ -428,6 +443,7 @@
         savedOrders.unshift(order);
         localStorage.setItem(ordersStorageKey, JSON.stringify(savedOrders));
         renderOrderHistory();
+        renderRoutes();
     }
 
     function validateOrder(order) {
@@ -493,16 +509,92 @@
             return [
                 `Pedido de ${date}`,
                 `Cliente: ${order.client} | Vendedor: ${order.seller}`,
+                ...(order.address ? [`Endereço: ${order.address}`] : []),
                 ...order.items.map(item => `${item.quantity}x ${item.name}`),
                 `Total: ${formatCurrency(order.total)}`
             ].join('\n');
         }).join('\n\n--------------------\n\n');
     }
 
+    function renderRoutes() {
+        const routeContainer = document.getElementById('rotas-content');
+        const savedOrders = getSavedOrders()
+            .filter(order => order.address && order.address.trim())
+            .sort((first, second) => new Date(first.date) - new Date(second.date));
+        const pendingOrders = savedOrders.filter(order => !order.delivered);
+        const deliveredOrders = savedOrders.filter(order => order.delivered);
+
+        routeContainer.replaceChildren();
+
+        if (!savedOrders.length) {
+            routeContainer.textContent = 'Nenhum pedido com endereço salvo.';
+            return;
+        }
+
+        const totals = document.createElement('p');
+        totals.textContent = `Entregas pendentes: ${pendingOrders.length} | Entregues: ${deliveredOrders.length}`;
+        routeContainer.appendChild(totals);
+
+        savedOrders.forEach(order => {
+            const stop = document.createElement('div');
+            stop.className = 'route-stop';
+
+            const details = document.createElement('span');
+            details.textContent = `${order.delivered ? 'Entregue' : 'Pendente'}: ${order.client || 'Cliente'} - ${order.address}`;
+            if (order.delivered) details.classList.add('route-stop-delivered');
+
+            const statusButton = document.createElement('button');
+            statusButton.type = 'button';
+            statusButton.textContent = order.delivered ? 'Voltar para pendentes' : 'Marcar entregue';
+            statusButton.addEventListener('click', () => toggleOrderDelivery(order.id));
+
+            stop.append(details, statusButton);
+            routeContainer.appendChild(stop);
+        });
+
+        if (!pendingOrders.length) return;
+
+        for (let start = 0; start < pendingOrders.length; start += 4) {
+            const segment = pendingOrders.slice(start, start + 4);
+            const destination = segment[segment.length - 1];
+            const mapsUrl = new URL('https://www.google.com/maps/dir/');
+            mapsUrl.searchParams.set('api', '1');
+            mapsUrl.searchParams.set('destination', destination.address);
+            mapsUrl.searchParams.set('travelmode', 'driving');
+
+            if (start > 0) mapsUrl.searchParams.set('origin', pendingOrders[start - 1].address);
+            if (segment.length > 1) {
+                mapsUrl.searchParams.set('waypoints', segment.slice(0, -1).map(order => order.address).join('|'));
+            }
+
+            const mapLink = document.createElement('a');
+            mapLink.className = 'route-link';
+            mapLink.href = mapsUrl.toString();
+            mapLink.target = '_blank';
+            mapLink.rel = 'noopener noreferrer';
+            mapLink.textContent = `Abrir trecho ${Math.floor(start / 4) + 1} no Google Maps`;
+            routeContainer.appendChild(mapLink);
+        }
+    }
+
+    function toggleOrderDelivery(orderId) {
+        const savedOrders = getSavedOrders().map(order =>
+            order.id === orderId ? { ...order, delivered: !order.delivered } : order
+        );
+
+        try {
+            localStorage.setItem(ordersStorageKey, JSON.stringify(savedOrders));
+            renderRoutes();
+        } catch (error) {
+            alert('Não foi possível atualizar o status da entrega neste navegador.');
+        }
+    }
+
     function clearAllOrders() {
         if (!confirm('Deseja apagar todos os pedidos salvos neste navegador?')) return;
         localStorage.removeItem(ordersStorageKey);
         renderOrderHistory();
+        renderRoutes();
     }
 
     function showTab(tabId, button) {
@@ -511,6 +603,7 @@
         document.getElementById(tabId).classList.add('active');
         button.classList.add('active');
         if (tabId === 'pedidos-historico') renderOrderHistory();
+        if (tabId === 'rotas') renderRoutes();
     }
 
     document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
@@ -520,6 +613,7 @@
 
     updateQuote();
     renderOrderHistory();
+    renderRoutes();
 </script>
 </body>
 </html>
