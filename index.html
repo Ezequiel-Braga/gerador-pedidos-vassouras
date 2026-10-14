@@ -30,6 +30,22 @@
         .saved-order-items { margin: 8px 0; padding-left: 22px; }
         .share-order-button { padding: 9px 14px; border: 0; border-radius: 5px; background: #25d366; color: #fff; cursor: pointer; }
         .share-order-button:hover { background: #1eae54; }
+        .customer-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+        .customer-form h4, .customer-list h4 { margin: 0 0 12px; }
+        .customer-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .customer-form-grid label { display: grid; gap: 5px; font-size: 14px; }
+        .customer-form-grid input, .customer-search { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .customer-form-actions, .customer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .customer-form-actions button, .customer-actions button { padding: 8px 12px; border: 0; border-radius: 4px; color: #fff; cursor: pointer; }
+        .customer-save-button, .customer-edit-button { background: #007bff; }
+        .customer-cancel-button { background: #6c757d; }
+        .customer-delete-button { background: #d9534f; }
+        .customer-card { padding: 12px 0; border-bottom: 1px solid #ddd; }
+        .customer-card:last-child { border-bottom: 0; }
+        .customer-card h5 { margin: 0 0 6px; font-size: 16px; }
+        .customer-card p { margin: 4px 0; }
+        .customer-hint { margin: 6px 0 0; color: #666; font-size: 12px; }
+        @media (max-width: 600px) { .customer-form-grid { grid-template-columns: 1fr; } }
         
         .product-image {
             width: 60px;
@@ -115,7 +131,11 @@
     <div id="client-info-section" class="product-section" style="border-color: #d9534f;">
         <h2>Dados da Venda</h2>
         <div class="internal-inputs">
-            <input type="text" id="clientName" placeholder="Nome do Cliente" required>
+            <div>
+                <input type="text" id="clientName" list="saved-client-options" placeholder="Nome do Cliente" autocomplete="off" required>
+                <datalist id="saved-client-options"></datalist>
+                <p class="customer-hint">Digite o nome e selecione um cliente cadastrado para preencher os dados.</p>
+            </div>
             <input type="text" id="clientPhone" placeholder="Telefone/WhatsApp">
             <input type="text" id="clientAddress" placeholder="Endereço de entrega (rua, número, bairro, cidade)">
             <input type="text" id="clientSeller" placeholder="Seu Nome / Vendedor" required>
@@ -157,6 +177,7 @@
             <button onclick="showTab('separacao', this)">📦 Separação/Estoque</button>
             <button onclick="showTab('pedidos-historico', this)">📝 Pedidos Salvos</button>
             <button onclick="showTab('rotas', this)">🗺️ Rotas</button>
+            <button onclick="showTab('clientes', this)">👥 Clientes</button>
         </div>
 
         <div id="financeiro" class="tab-content active">
@@ -187,6 +208,34 @@
         <div id="rotas" class="tab-content">
             <h3>Rota de entregas</h3>
             <div id="rotas-content">Nenhum pedido com endereço salvo.</div>
+        </div>
+
+        <div id="clientes" class="tab-content">
+            <h3>Cadastro de Clientes</h3>
+            <form id="customer-form" class="customer-form">
+                <h4 id="customer-form-title">Cadastrar cliente</h4>
+                <input type="hidden" id="customer-id">
+                <div class="customer-form-grid">
+                    <label for="customer-name">Nome *
+                        <input id="customer-name" type="text" autocomplete="name" required>
+                    </label>
+                    <label for="customer-phone">Telefone/WhatsApp
+                        <input id="customer-phone" type="tel" autocomplete="tel">
+                    </label>
+                    <label for="customer-address">Endereço
+                        <input id="customer-address" type="text" autocomplete="street-address">
+                    </label>
+                </div>
+                <div class="customer-form-actions">
+                    <button class="customer-save-button" type="submit">Salvar cliente</button>
+                    <button id="customer-cancel" class="customer-cancel-button" type="button" hidden>Cancelar edição</button>
+                </div>
+            </form>
+            <div class="customer-list">
+                <h4>Clientes cadastrados (<span id="customer-count">0</span>)</h4>
+                <input id="customer-search" class="customer-search" type="search" placeholder="Buscar cliente por nome, telefone ou endereço" aria-label="Buscar clientes">
+                <div id="customers-content"></div>
+            </div>
         </div>
     </div>
 
@@ -299,6 +348,216 @@
     renderProducts();
 
     const ordersStorageKey = 'gerador-pedidos-vassouras';
+    const customersStorageKey = 'gerador-clientes-vassouras';
+    let customers = loadCustomers();
+    let selectedCustomerId = '';
+    let selectedCustomerData = null;
+
+    function loadCustomers() {
+        try {
+            const savedCustomers = JSON.parse(localStorage.getItem(customersStorageKey) || '[]');
+            if (!Array.isArray(savedCustomers)) throw new Error('invalid-customer-list');
+            return savedCustomers.filter(customer =>
+                customer &&
+                typeof customer.id === 'string' &&
+                typeof customer.name === 'string' &&
+                typeof customer.phone === 'string' &&
+                typeof customer.address === 'string'
+            );
+        } catch (error) {
+            console.error('Não foi possível carregar os clientes salvos:', error);
+            alert('Não foi possível carregar o cadastro de clientes salvo neste navegador.');
+            return [];
+        }
+    }
+
+    function saveCustomers(updatedCustomers) {
+        try {
+            localStorage.setItem(customersStorageKey, JSON.stringify(updatedCustomers));
+            customers = updatedCustomers;
+            return true;
+        } catch (error) {
+            console.error('Não foi possível salvar os clientes:', error);
+            alert('Não foi possível salvar os clientes neste navegador. Verifique o espaço disponível.');
+            return false;
+        }
+    }
+
+    function normalizeCustomerName(name) {
+        return name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    }
+
+    function renderCustomers() {
+        const customerList = document.getElementById('customers-content');
+        const customerOptions = document.getElementById('saved-client-options');
+        const searchTerm = normalizeCustomerName(document.getElementById('customer-search').value);
+        const sortedCustomers = [...customers].sort((first, second) =>
+            first.name.localeCompare(second.name, 'pt-BR')
+        );
+
+        customerOptions.replaceChildren();
+        sortedCustomers.forEach(customer => {
+            const option = document.createElement('option');
+            option.value = customer.name;
+            customerOptions.append(option);
+        });
+
+        document.getElementById('customer-count').textContent = String(customers.length);
+        customerList.replaceChildren();
+        const visibleCustomers = sortedCustomers.filter(customer =>
+            normalizeCustomerName(`${customer.name} ${customer.phone} ${customer.address}`).includes(searchTerm)
+        );
+
+        if (!visibleCustomers.length) {
+            customerList.textContent = customers.length
+                ? 'Nenhum cliente corresponde à busca.'
+                : 'Nenhum cliente cadastrado ainda.';
+            return;
+        }
+
+        visibleCustomers.forEach(customer => {
+            const card = document.createElement('article');
+            card.className = 'customer-card';
+
+            const name = document.createElement('h5');
+            name.textContent = customer.name;
+            card.append(name);
+
+            const phone = document.createElement('p');
+            phone.textContent = `Telefone: ${customer.phone || '-'}`;
+            card.append(phone);
+
+            const address = document.createElement('p');
+            address.textContent = `Endereço: ${customer.address || '-'}`;
+            card.append(address);
+
+            const actions = document.createElement('div');
+            actions.className = 'customer-actions';
+
+            const editButton = document.createElement('button');
+            editButton.className = 'customer-edit-button';
+            editButton.type = 'button';
+            editButton.textContent = 'Editar';
+            editButton.addEventListener('click', () => editCustomer(customer.id));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'customer-delete-button';
+            deleteButton.type = 'button';
+            deleteButton.textContent = 'Excluir';
+            deleteButton.addEventListener('click', () => deleteCustomer(customer.id));
+
+            actions.append(editButton, deleteButton);
+            card.append(actions);
+            customerList.append(card);
+        });
+    }
+
+    function saveCustomer(event) {
+        event.preventDefault();
+        const customerId = document.getElementById('customer-id').value;
+        const name = document.getElementById('customer-name').value.trim();
+        const phone = document.getElementById('customer-phone').value.trim();
+        const address = document.getElementById('customer-address').value.trim();
+
+        if (!name) {
+            alert('Informe o nome do cliente.');
+            return;
+        }
+
+        const duplicate = customers.find(customer =>
+            customer.id !== customerId &&
+            normalizeCustomerName(customer.name) === normalizeCustomerName(name)
+        );
+        if (duplicate) {
+            alert('Já existe um cliente cadastrado com esse nome. Edite o cadastro existente para atualizar os dados.');
+            return;
+        }
+
+        const existingCustomer = customers.find(customer => customer.id === customerId);
+        if (customerId && !existingCustomer) {
+            alert('Esse cadastro não existe mais. Atualize a lista e tente novamente.');
+            resetCustomerForm();
+            return;
+        }
+
+        const customer = {
+            id: existingCustomer?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            name,
+            phone,
+            address
+        };
+        const updatedCustomers = existingCustomer
+            ? customers.map(savedCustomer => savedCustomer.id === customerId ? customer : savedCustomer)
+            : [...customers, customer];
+
+        if (!saveCustomers(updatedCustomers)) return;
+        resetCustomerForm();
+        renderCustomers();
+        alert(existingCustomer ? 'Cadastro do cliente atualizado.' : 'Cliente cadastrado com sucesso.');
+    }
+
+    function editCustomer(customerId) {
+        const customer = customers.find(savedCustomer => savedCustomer.id === customerId);
+        if (!customer) {
+            alert('Não foi possível encontrar esse cliente.');
+            return;
+        }
+
+        document.getElementById('customer-id').value = customer.id;
+        document.getElementById('customer-name').value = customer.name;
+        document.getElementById('customer-phone').value = customer.phone;
+        document.getElementById('customer-address').value = customer.address;
+        document.getElementById('customer-form-title').textContent = 'Editar cliente';
+        document.getElementById('customer-cancel').hidden = false;
+        document.getElementById('customer-name').focus();
+    }
+
+    function resetCustomerForm() {
+        document.getElementById('customer-form').reset();
+        document.getElementById('customer-id').value = '';
+        document.getElementById('customer-form-title').textContent = 'Cadastrar cliente';
+        document.getElementById('customer-cancel').hidden = true;
+    }
+
+    function deleteCustomer(customerId) {
+        const customer = customers.find(savedCustomer => savedCustomer.id === customerId);
+        if (!customer) {
+            alert('Não foi possível encontrar esse cliente.');
+            return;
+        }
+        if (!confirm(`Excluir o cadastro de ${customer.name}? Os pedidos já salvos não serão apagados.`)) return;
+
+        const updatedCustomers = customers.filter(savedCustomer => savedCustomer.id !== customerId);
+        if (!saveCustomers(updatedCustomers)) return;
+        if (document.getElementById('customer-id').value === customerId) resetCustomerForm();
+        renderCustomers();
+    }
+
+    function fillCustomerFromName() {
+        const name = document.getElementById('clientName').value;
+        const customer = customers.find(savedCustomer =>
+            normalizeCustomerName(savedCustomer.name) === normalizeCustomerName(name)
+        );
+
+        if (customer) {
+            document.getElementById('clientPhone').value = customer.phone;
+            document.getElementById('clientAddress').value = customer.address;
+            selectedCustomerId = customer.id;
+            selectedCustomerData = { phone: customer.phone, address: customer.address };
+            updateQuote();
+            return;
+        }
+
+        if (selectedCustomerId && selectedCustomerData) {
+            const phoneInput = document.getElementById('clientPhone');
+            const addressInput = document.getElementById('clientAddress');
+            if (phoneInput.value === selectedCustomerData.phone) phoneInput.value = '';
+            if (addressInput.value === selectedCustomerData.address) addressInput.value = '';
+        }
+        selectedCustomerId = '';
+        selectedCustomerData = null;
+        updateQuote();
+    }
 
     function updateProductPrice(productId, value) {
         const product = Object.values(products).flat().find(item => item.id === productId);
@@ -713,7 +972,14 @@
         button.classList.add('active');
         if (tabId === 'pedidos-historico') renderOrderHistory();
         if (tabId === 'rotas') renderRoutes();
+        if (tabId === 'clientes') renderCustomers();
     }
+
+    document.getElementById('customer-form').addEventListener('submit', saveCustomer);
+    document.getElementById('customer-cancel').addEventListener('click', resetCustomerForm);
+    document.getElementById('customer-search').addEventListener('input', renderCustomers);
+    document.getElementById('clientName').addEventListener('input', fillCustomerFromName);
+    document.getElementById('clientName').addEventListener('change', fillCustomerFromName);
 
     document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
         input.addEventListener('input', updateQuote);
@@ -723,6 +989,7 @@
     updateQuote();
     renderOrderHistory();
     renderRoutes();
+    renderCustomers();
 </script>
 </body>
 </html>
