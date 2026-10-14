@@ -35,6 +35,8 @@
         .customer-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .customer-form-grid label { display: grid; gap: 5px; font-size: 14px; }
         .customer-form-grid input, .customer-search { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .visit-days-fieldset { grid-column: 1 / -1; border: 0; padding: 0; margin: 0; }
+        .visit-days-fieldset legend { margin-bottom: 6px; }
         .customer-form-actions, .customer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .customer-form-actions button, .customer-actions button { padding: 8px 12px; border: 0; border-radius: 4px; color: #fff; cursor: pointer; }
         .customer-save-button, .customer-edit-button { background: #007bff; }
@@ -45,6 +47,24 @@
         .customer-card h5 { margin: 0 0 6px; font-size: 16px; }
         .customer-card p { margin: 4px 0; }
         .customer-hint { margin: 6px 0 0; color: #666; font-size: 12px; }
+        .visit-days { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .visit-days label { display: flex; align-items: center; gap: 5px; }
+        .route-planner { margin-bottom: 18px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+        .route-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 14px 0; }
+        .route-settings label { display: grid; gap: 5px; font-size: 14px; }
+        .route-settings input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .route-generate-button, .visit-done-button { padding: 9px 14px; border: 0; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; }
+        .visit-done-button { background: #5cb85c; }
+        .visit-done-button:disabled { background: #999; cursor: not-allowed; }
+        .planned-visit { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ddd; }
+        .planned-visit:last-child { border-bottom: 0; }
+        .planned-visit-time { font-weight: 700; color: #176b50; }
+        .planned-visit-details strong { display: block; }
+        .planned-visit-details span, .route-note { color: #666; font-size: 13px; }
+        .route-warning { color: #9a4c3f; }
+        .route-link { padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px; }
+        .route-settings-status { min-height: 1.3em; color: #176b50; font-size: 13px; }
+        @media (max-width: 600px) { .planned-visit { grid-template-columns: 72px minmax(0, 1fr); } .planned-visit .visit-done-button { grid-column: 2; justify-self: start; } }
         @media (max-width: 600px) { .customer-form-grid { grid-template-columns: 1fr; } }
         
         .product-image {
@@ -206,7 +226,31 @@
         </div>
 
         <div id="rotas" class="tab-content">
-            <h3>Rota de entregas</h3>
+            <h3>Planejamento de visitas</h3>
+            <section class="route-planner" aria-label="Configurações da rota de visitas">
+                <div class="route-settings">
+                    <label for="route-date">Data da rota
+                        <input id="route-date" type="date">
+                    </label>
+                    <label for="route-start-time">Início do expediente
+                        <input id="route-start-time" type="time" value="08:00">
+                    </label>
+                    <label for="route-end-time">Fim do expediente
+                        <input id="route-end-time" type="time" value="17:00">
+                    </label>
+                    <label for="route-visit-duration">Duração de cada visita (min)
+                        <input id="route-visit-duration" type="number" min="5" max="480" step="5" value="30">
+                    </label>
+                    <label for="route-travel-time">Deslocamento entre clientes (min)
+                        <input id="route-travel-time" type="number" min="0" max="240" step="5" value="20">
+                    </label>
+                </div>
+                <button id="generate-visit-route" class="route-generate-button" type="button">Planejar visitas do dia</button>
+                <p id="route-settings-status" class="route-settings-status" role="status" aria-live="polite"></p>
+            </section>
+            <p class="route-note">A agenda considera o dia preferido, o intervalo desde a última visita e o horário de almoço de cada cliente; a ordem inicial é alfabética. O deslocamento é uma estimativa ajustável, não considera o trânsito em tempo real. Confira e ajuste o trajeto no Google Maps.</p>
+            <div id="visit-route-content">Selecione uma data e planeje as visitas.</div>
+            <h3>Rota de entregas de pedidos</h3>
             <div id="rotas-content">Nenhum pedido com endereço salvo.</div>
         </div>
 
@@ -224,6 +268,28 @@
                     </label>
                     <label for="customer-address">Endereço
                         <input id="customer-address" type="text" autocomplete="street-address">
+                    </label>
+                    <label for="customer-visit-frequency">Visitar a cada (dias)
+                        <input id="customer-visit-frequency" type="number" min="1" max="365" step="1" value="30" required>
+                    </label>
+                    <fieldset class="visit-days-fieldset">
+                        <legend>Dias preferidos para visita *</legend>
+                        <div class="visit-days">
+                            <label><input type="checkbox" name="customer-visit-day" value="1" checked> Segunda</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="2" checked> Terça</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="3" checked> Quarta</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="4" checked> Quinta</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="5" checked> Sexta</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="6"> Sábado</label>
+                            <label><input type="checkbox" name="customer-visit-day" value="0"> Domingo</label>
+                        </div>
+                    </fieldset>
+                    <label style="grid-column: 1 / -1;"><span><input id="customer-lunch-break" type="checkbox"> Fecha para o almoço</span></label>
+                    <label for="customer-lunch-start">Fecha às
+                        <input id="customer-lunch-start" type="time" value="12:00" disabled>
+                    </label>
+                    <label for="customer-lunch-end">Volta às
+                        <input id="customer-lunch-end" type="time" value="13:00" disabled>
                     </label>
                 </div>
                 <div class="customer-form-actions">
@@ -363,7 +429,21 @@
                 typeof customer.name === 'string' &&
                 typeof customer.phone === 'string' &&
                 typeof customer.address === 'string'
-            );
+            ).map(customer => ({
+                ...customer,
+                visitFrequencyDays: Number.isInteger(customer.visitFrequencyDays)
+                    && customer.visitFrequencyDays >= 1
+                    && customer.visitFrequencyDays <= 365
+                    ? customer.visitFrequencyDays
+                    : 30,
+                visitDays: Array.isArray(customer.visitDays)
+                    ? [...new Set(customer.visitDays.filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]
+                    : [1, 2, 3, 4, 5],
+                lunchBreak: customer.lunchBreak === true,
+                lunchStart: typeof customer.lunchStart === 'string' ? customer.lunchStart : '12:00',
+                lunchEnd: typeof customer.lunchEnd === 'string' ? customer.lunchEnd : '13:00',
+                lastVisitDate: typeof customer.lastVisitDate === 'string' ? customer.lastVisitDate : ''
+            }));
         } catch (error) {
             console.error('Não foi possível carregar os clientes salvos:', error);
             alert('Não foi possível carregar o cadastro de clientes salvo neste navegador.');
@@ -382,6 +462,50 @@
             return false;
         }
     }
+
+    const visitRouteSettingsKey = 'gerador-rota-visitas-vassouras';
+    const defaultVisitRouteSettings = {
+        startTime: '08:00',
+        endTime: '17:00',
+        visitDuration: 30,
+        travelTime: 20
+    };
+
+    function loadVisitRouteSettings() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(visitRouteSettingsKey) || 'null');
+            if (saved === null) {
+                return { ...defaultVisitRouteSettings };
+            }
+
+            const isValidSettings = saved &&
+                typeof saved === 'object' &&
+                !Array.isArray(saved) &&
+                isValidTime(saved.startTime) &&
+                isValidTime(saved.endTime) &&
+                timeToMinutes(saved.endTime) > timeToMinutes(saved.startTime) &&
+                Number.isInteger(saved.visitDuration) &&
+                saved.visitDuration >= 5 &&
+                saved.visitDuration <= 480 &&
+                Number.isInteger(saved.travelTime) &&
+                saved.travelTime >= 0 &&
+                saved.travelTime <= 240;
+            if (!isValidSettings) throw new Error('invalid-visit-route-settings');
+
+            return {
+                startTime: saved.startTime,
+                endTime: saved.endTime,
+                visitDuration: saved.visitDuration,
+                travelTime: saved.travelTime
+            };
+        } catch (error) {
+            console.error('Não foi possível carregar as configurações da rota:', error);
+            alert('As configurações salvas da rota são inválidas. Serão usados os valores padrão.');
+            return { ...defaultVisitRouteSettings };
+        }
+    }
+
+    let visitRouteSettings = loadVisitRouteSettings();
 
     function normalizeCustomerName(name) {
         return name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
@@ -431,6 +555,22 @@
             address.textContent = `Endereço: ${customer.address || '-'}`;
             card.append(address);
 
+            const visitDays = document.createElement('p');
+            visitDays.textContent = `Dias: ${getWeekdayNames(customer.visitDays).join(', ')} · Intervalo: a cada ${customer.visitFrequencyDays} dias`;
+            card.append(visitDays);
+
+            const lunch = document.createElement('p');
+            lunch.textContent = customer.lunchBreak
+                ? `Fecha para almoço: ${customer.lunchStart}–${customer.lunchEnd}`
+                : 'Não fecha para almoço';
+            card.append(lunch);
+
+            const lastVisit = document.createElement('p');
+            lastVisit.textContent = customer.lastVisitDate
+                ? `Última visita: ${formatDateForDisplay(customer.lastVisitDate)} · Próxima a partir de ${formatDateForDisplay(getNextVisitDate(customer))}`
+                : 'Ainda sem visita registrada';
+            card.append(lastVisit);
+
             const actions = document.createElement('div');
             actions.className = 'customer-actions';
 
@@ -458,9 +598,27 @@
         const name = document.getElementById('customer-name').value.trim();
         const phone = document.getElementById('customer-phone').value.trim();
         const address = document.getElementById('customer-address').value.trim();
+        const visitFrequencyDays = Number(document.getElementById('customer-visit-frequency').value);
+        const visitDays = [...document.querySelectorAll('input[name="customer-visit-day"]:checked')]
+            .map(input => Number(input.value));
+        const lunchBreak = document.getElementById('customer-lunch-break').checked;
+        const lunchStart = document.getElementById('customer-lunch-start').value;
+        const lunchEnd = document.getElementById('customer-lunch-end').value;
 
         if (!name) {
             alert('Informe o nome do cliente.');
+            return;
+        }
+        if (!Number.isInteger(visitFrequencyDays) || visitFrequencyDays < 1 || visitFrequencyDays > 365) {
+            alert('Informe um intervalo de visita entre 1 e 365 dias.');
+            return;
+        }
+        if (!visitDays.length) {
+            alert('Selecione pelo menos um dia preferido para visitar o cliente.');
+            return;
+        }
+        if (lunchBreak && (!isValidTime(lunchStart) || !isValidTime(lunchEnd) || timeToMinutes(lunchEnd) <= timeToMinutes(lunchStart))) {
+            alert('Confira os horários de fechamento e retorno do almoço do cliente.');
             return;
         }
 
@@ -484,7 +642,13 @@
             id: existingCustomer?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             name,
             phone,
-            address
+            address,
+            visitFrequencyDays,
+            visitDays,
+            lunchBreak,
+            lunchStart,
+            lunchEnd,
+            lastVisitDate: existingCustomer?.lastVisitDate || ''
         };
         const updatedCustomers = existingCustomer
             ? customers.map(savedCustomer => savedCustomer.id === customerId ? customer : savedCustomer)
@@ -507,6 +671,14 @@
         document.getElementById('customer-name').value = customer.name;
         document.getElementById('customer-phone').value = customer.phone;
         document.getElementById('customer-address').value = customer.address;
+        document.getElementById('customer-visit-frequency').value = String(customer.visitFrequencyDays);
+        document.querySelectorAll('input[name="customer-visit-day"]').forEach(input => {
+            input.checked = customer.visitDays.includes(Number(input.value));
+        });
+        document.getElementById('customer-lunch-break').checked = customer.lunchBreak;
+        document.getElementById('customer-lunch-start').value = customer.lunchStart;
+        document.getElementById('customer-lunch-end').value = customer.lunchEnd;
+        updateLunchFields();
         document.getElementById('customer-form-title').textContent = 'Editar cliente';
         document.getElementById('customer-cancel').hidden = false;
         document.getElementById('customer-name').focus();
@@ -517,6 +689,14 @@
         document.getElementById('customer-id').value = '';
         document.getElementById('customer-form-title').textContent = 'Cadastrar cliente';
         document.getElementById('customer-cancel').hidden = true;
+        document.getElementById('customer-visit-frequency').value = '30';
+        document.querySelectorAll('input[name="customer-visit-day"]').forEach(input => {
+            input.checked = ['1', '2', '3', '4', '5'].includes(input.value);
+        });
+        document.getElementById('customer-lunch-break').checked = false;
+        document.getElementById('customer-lunch-start').value = '12:00';
+        document.getElementById('customer-lunch-end').value = '13:00';
+        updateLunchFields();
     }
 
     function deleteCustomer(customerId) {
@@ -884,6 +1064,256 @@
         });
     }
 
+    function getWeekdayNames(days) {
+        const names = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        return days.map(day => names[day]);
+    }
+
+    function isValidTime(value) {
+        if (!/^\d{2}:\d{2}$/.test(value)) return false;
+        const [hours, minutes] = value.split(':').map(Number);
+        return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
+    }
+
+    function timeToMinutes(value) {
+        const [hours, minutes] = value.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    function minutesToTime(value) {
+        const hours = Math.floor(value / 60);
+        const minutes = value % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function formatLocalDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function formatDateForDisplay(value) {
+        if (!value) return '-';
+        const [year, month, day] = value.split('-').map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+    }
+
+    function getNextVisitDate(customer) {
+        if (!customer.lastVisitDate) return '';
+        const [year, month, day] = customer.lastVisitDate.split('-').map(Number);
+        const nextDate = new Date(year, month - 1, day, 12);
+        nextDate.setDate(nextDate.getDate() + customer.visitFrequencyDays);
+        return formatLocalDate(nextDate);
+    }
+
+    function updateLunchFields() {
+        const isLunchBreakEnabled = document.getElementById('customer-lunch-break').checked;
+        document.getElementById('customer-lunch-start').disabled = !isLunchBreakEnabled;
+        document.getElementById('customer-lunch-end').disabled = !isLunchBreakEnabled;
+    }
+
+    function getDueVisitCustomers(routeDate) {
+        const date = new Date(`${routeDate}T12:00:00`);
+        const weekday = date.getDay();
+        return customers
+            .filter(customer => {
+                if (!customer.visitDays.includes(weekday)) return false;
+                const nextVisitDate = getNextVisitDate(customer);
+                return !nextVisitDate || routeDate >= nextVisitDate;
+            })
+            .sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'));
+    }
+
+    function saveVisitRouteSettings() {
+        const updatedSettings = {
+            startTime: document.getElementById('route-start-time').value,
+            endTime: document.getElementById('route-end-time').value,
+            visitDuration: Number(document.getElementById('route-visit-duration').value),
+            travelTime: Number(document.getElementById('route-travel-time').value)
+        };
+
+        if (
+            !isValidTime(updatedSettings.startTime) ||
+            !isValidTime(updatedSettings.endTime) ||
+            timeToMinutes(updatedSettings.endTime) <= timeToMinutes(updatedSettings.startTime) ||
+            !Number.isInteger(updatedSettings.visitDuration) ||
+            updatedSettings.visitDuration < 5 ||
+            updatedSettings.visitDuration > 480 ||
+            !Number.isInteger(updatedSettings.travelTime) ||
+            updatedSettings.travelTime < 0 ||
+            updatedSettings.travelTime > 240
+        ) {
+            alert('Confira os horários e durações. O fim do expediente deve ser depois do início.');
+            return false;
+        }
+
+        try {
+            localStorage.setItem(visitRouteSettingsKey, JSON.stringify(updatedSettings));
+        } catch (error) {
+            console.error('Não foi possível salvar as configurações da rota:', error);
+            alert('Não foi possível salvar as configurações da rota neste navegador.');
+            return false;
+        }
+
+        visitRouteSettings = updatedSettings;
+        document.getElementById('route-settings-status').textContent = 'Configurações da rota salvas neste navegador.';
+        return true;
+    }
+
+    function createVisitMapLinks(visitStops, container) {
+        const stopsWithAddress = visitStops.filter(({ customer }) => customer.address.trim());
+        if (!stopsWithAddress.length) return;
+
+        for (let start = 0; start < stopsWithAddress.length; start += 3) {
+            const segment = stopsWithAddress.slice(start, start + 4);
+            const mapsUrl = new URL('https://www.google.com/maps/dir/');
+            mapsUrl.searchParams.set('api', '1');
+            mapsUrl.searchParams.set('destination', segment[segment.length - 1].customer.address);
+            mapsUrl.searchParams.set('travelmode', 'driving');
+            if (segment.length > 1) {
+                mapsUrl.searchParams.set('origin', segment[0].customer.address);
+                if (segment.length > 2) {
+                    mapsUrl.searchParams.set('waypoints', segment.slice(1, -1).map(stop => stop.customer.address).join('|'));
+                }
+            }
+
+            const link = document.createElement('a');
+            link.className = 'route-link';
+            link.href = mapsUrl.toString();
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = `Abrir trecho ${Math.floor(start / 4) + 1} no Google Maps`;
+            container.append(link);
+        }
+    }
+
+    function recordCustomerVisit(customerId, routeDate) {
+        if (routeDate > formatLocalDate(new Date())) {
+            alert('Uma visita futura não pode ser registrada como realizada.');
+            return;
+        }
+
+        const updatedCustomers = customers.map(customer =>
+            customer.id === customerId ? { ...customer, lastVisitDate: routeDate } : customer
+        );
+        if (!saveCustomers(updatedCustomers)) return;
+        renderCustomers();
+        renderVisitRoute();
+    }
+
+    function renderVisitRoute() {
+        const output = document.getElementById('visit-route-content');
+        const routeDate = document.getElementById('route-date').value;
+        output.replaceChildren();
+
+        if (!routeDate || Number.isNaN(new Date(`${routeDate}T12:00:00`).getTime())) {
+            output.textContent = 'Selecione uma data válida para planejar as visitas.';
+            return;
+        }
+
+        const dueCustomers = getDueVisitCustomers(routeDate);
+        if (!dueCustomers.length) {
+            output.textContent = customers.length
+                ? 'Nenhum cliente está previsto para visita nesta data. Confira os dias preferidos e o intervalo desde a última visita.'
+                : 'Cadastre clientes com dias e frequência de visita para gerar uma rota.';
+            return;
+        }
+
+        let currentTime = timeToMinutes(visitRouteSettings.startTime);
+        const endOfWorkday = timeToMinutes(visitRouteSettings.endTime);
+        const scheduledVisits = [];
+        const unscheduledCustomers = [];
+
+        dueCustomers.forEach((customer, index) => {
+            let visitStart = currentTime + (index === 0 ? 0 : visitRouteSettings.travelTime);
+            let lunchAdjusted = false;
+
+            if (customer.lunchBreak) {
+                const lunchStart = timeToMinutes(customer.lunchStart);
+                const lunchEnd = timeToMinutes(customer.lunchEnd);
+                if (visitStart < lunchEnd && visitStart + visitRouteSettings.visitDuration > lunchStart) {
+                    visitStart = lunchEnd;
+                    lunchAdjusted = true;
+                }
+            }
+
+            const visitEnd = visitStart + visitRouteSettings.visitDuration;
+            if (visitEnd > endOfWorkday) {
+                unscheduledCustomers.push(customer);
+                return;
+            }
+
+            scheduledVisits.push({ customer, start: visitStart, end: visitEnd, lunchAdjusted });
+            currentTime = visitEnd;
+        });
+
+        const summary = document.createElement('p');
+        summary.textContent = `Agenda para ${formatDateForDisplay(routeDate)}: ${scheduledVisits.length} visita(s) planejada(s).`;
+        output.append(summary);
+
+        if (!scheduledVisits.length) {
+            const noSlots = document.createElement('p');
+            noSlots.className = 'route-warning';
+            noSlots.textContent = 'Nenhuma visita cabe no expediente configurado. Aumente o horário disponível ou reduza a duração e o deslocamento.';
+            output.append(noSlots);
+        }
+
+        const isVisitDateReached = routeDate <= formatLocalDate(new Date());
+        scheduledVisits.forEach(({ customer, start, end, lunchAdjusted }) => {
+            const visit = document.createElement('article');
+            visit.className = 'planned-visit';
+
+            const time = document.createElement('span');
+            time.className = 'planned-visit-time';
+            time.textContent = `${minutesToTime(start)}–${minutesToTime(end)}`;
+
+            const details = document.createElement('div');
+            details.className = 'planned-visit-details';
+            const name = document.createElement('strong');
+            name.textContent = customer.name;
+            details.append(name);
+
+            const address = document.createElement('span');
+            address.textContent = customer.address || 'Endereço não cadastrado';
+            if (!customer.address) address.classList.add('route-warning');
+            details.append(address);
+
+            const info = document.createElement('span');
+            info.textContent = customer.lunchBreak
+                ? `Almoço: ${customer.lunchStart}–${customer.lunchEnd}${lunchAdjusted ? ' · horário ajustado após o retorno' : ''}`
+                : `Visita a cada ${customer.visitFrequencyDays} dias`;
+            details.append(info);
+
+            const doneButton = document.createElement('button');
+            doneButton.className = 'visit-done-button';
+            doneButton.type = 'button';
+            doneButton.textContent = customer.lastVisitDate === routeDate ? 'Visita registrada' : 'Registrar visita feita';
+            doneButton.disabled = !isVisitDateReached || customer.lastVisitDate === routeDate;
+            doneButton.addEventListener('click', () => recordCustomerVisit(customer.id, routeDate));
+
+            visit.append(time, details, doneButton);
+            output.append(visit);
+        });
+
+        if (unscheduledCustomers.length) {
+            const unscheduledHeading = document.createElement('p');
+            unscheduledHeading.className = 'route-warning';
+            unscheduledHeading.textContent = `Não couberam no expediente (${unscheduledCustomers.length}): ${unscheduledCustomers.map(customer => customer.name).join(', ')}.`;
+            output.append(unscheduledHeading);
+        }
+
+        const missingAddresses = scheduledVisits.filter(({ customer }) => !customer.address.trim()).length;
+        if (missingAddresses) {
+            const addressWarning = document.createElement('p');
+            addressWarning.className = 'route-warning';
+            addressWarning.textContent = `${missingAddresses} cliente(s) da agenda estão sem endereço e não aparecerão no trajeto do mapa.`;
+            output.append(addressWarning);
+        }
+
+        createVisitMapLinks(scheduledVisits, output);
+    }
+
     function renderRoutes() {
         const routeContainer = document.getElementById('rotas-content');
         const savedOrders = getSavedOrders()
@@ -972,24 +1402,37 @@
         button.classList.add('active');
         if (tabId === 'pedidos-historico') renderOrderHistory();
         if (tabId === 'rotas') renderRoutes();
+        if (tabId === 'rotas') renderVisitRoute();
         if (tabId === 'clientes') renderCustomers();
     }
 
     document.getElementById('customer-form').addEventListener('submit', saveCustomer);
     document.getElementById('customer-cancel').addEventListener('click', resetCustomerForm);
     document.getElementById('customer-search').addEventListener('input', renderCustomers);
+    document.getElementById('customer-lunch-break').addEventListener('change', updateLunchFields);
     document.getElementById('clientName').addEventListener('input', fillCustomerFromName);
     document.getElementById('clientName').addEventListener('change', fillCustomerFromName);
+    document.getElementById('generate-visit-route').addEventListener('click', () => {
+        if (saveVisitRouteSettings()) renderVisitRoute();
+    });
+    document.getElementById('route-date').addEventListener('change', renderVisitRoute);
 
     document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
         input.addEventListener('input', updateQuote);
         input.addEventListener('change', updateQuote);
     });
 
+    document.getElementById('route-date').value = formatLocalDate(new Date());
+    document.getElementById('route-start-time').value = visitRouteSettings.startTime;
+    document.getElementById('route-end-time').value = visitRouteSettings.endTime;
+    document.getElementById('route-visit-duration').value = String(visitRouteSettings.visitDuration);
+    document.getElementById('route-travel-time').value = String(visitRouteSettings.travelTime);
+    updateLunchFields();
     updateQuote();
     renderOrderHistory();
     renderRoutes();
     renderCustomers();
+    renderVisitRoute();
 </script>
 </body>
 </html>
