@@ -133,6 +133,8 @@
         #logistics-total-container strong {
             font-size: 1.5em;
         }
+        .stock-share-button { display: block; margin: 0 auto 14px; padding: 10px 16px; border: 0; border-radius: 5px; background: #25d366; color: #fff; cursor: pointer; font-size: 15px; }
+        .stock-share-button:hover { background: #1eae54; }
         
         .action-buttons { text-align: center; margin-top: 20px; }
         .action-buttons button { background-color: #5cb85c; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 5px; transition: background-color 0.3s; }
@@ -210,6 +212,7 @@
             <div id="logistics-total-container">
                 TOTAL DE ITENS VENDIDOS: <strong id="logistics-total-count">0</strong>
             </div>
+            <button id="share-stock-summary" class="stock-share-button" type="button">📱 Compartilhar total de itens vendidos</button>
             <div id="separation-output">
                 Selecione os itens e preencha os dados da venda.
             </div>
@@ -905,6 +908,17 @@
         document.getElementById('logistics-total-count').textContent = stock.totalQuantity;
     }
 
+    function shareAccumulatedStock() {
+        const stock = getAccumulatedStockSummary(getSavedOrders());
+        if (!stock.totalQuantity) {
+            alert('Ainda não há itens vendidos nos pedidos salvos para compartilhar.');
+            return;
+        }
+
+        const url = `https://wa.me/?text=${encodeURIComponent(stock.summary)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
     async function copyText(text) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
@@ -1416,6 +1430,7 @@
         if (saveVisitRouteSettings()) renderVisitRoute();
     });
     document.getElementById('route-date').addEventListener('change', renderVisitRoute);
+    document.getElementById('share-stock-summary').addEventListener('click', shareAccumulatedStock);
 
     document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
         input.addEventListener('input', updateQuote);
