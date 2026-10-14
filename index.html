@@ -34,7 +34,7 @@
         .customer-form h4, .customer-list h4 { margin: 0 0 12px; }
         .customer-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .customer-form-grid label { display: grid; gap: 5px; font-size: 14px; }
-        .customer-form-grid input, .customer-search { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .customer-form-grid input, .customer-form-grid select, .customer-search { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .visit-days-fieldset { grid-column: 1 / -1; border: 0; padding: 0; margin: 0; }
         .visit-days-fieldset legend { margin-bottom: 6px; }
         .customer-form-actions, .customer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -46,13 +46,22 @@
         .customer-card:last-child { border-bottom: 0; }
         .customer-card h5 { margin: 0 0 6px; font-size: 16px; }
         .customer-card p { margin: 4px 0; }
+        .service-area-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+        .service-area-form label { display: grid; flex: 1 1 240px; gap: 5px; }
+        .service-area-form input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .service-area-form button { padding: 9px 14px; border: 0; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; }
+        .service-area-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ddd; }
+        .service-area-card:last-child { border-bottom: 0; }
+        .service-area-card p { margin: 4px 0 0; color: #666; }
+        .service-area-delete { padding: 7px 10px; border: 0; border-radius: 4px; background: #d9534f; color: #fff; cursor: pointer; }
+        .service-area-delete:disabled { background: #999; cursor: not-allowed; }
         .customer-hint { margin: 6px 0 0; color: #666; font-size: 12px; }
         .visit-days { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .visit-days label { display: flex; align-items: center; gap: 5px; }
         .route-planner { margin-bottom: 18px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
         .route-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 14px 0; }
         .route-settings label { display: grid; gap: 5px; font-size: 14px; }
-        .route-settings input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .route-settings input, .route-settings select { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .route-generate-button, .visit-done-button { padding: 9px 14px; border: 0; border-radius: 4px; background: #007bff; color: #fff; cursor: pointer; }
         .visit-done-button { background: #5cb85c; }
         .visit-done-button:disabled { background: #999; cursor: not-allowed; }
@@ -200,6 +209,7 @@
             <button onclick="showTab('pedidos-historico', this)">📝 Pedidos Salvos</button>
             <button onclick="showTab('rotas', this)">🗺️ Rotas</button>
             <button onclick="showTab('clientes', this)">👥 Clientes</button>
+            <button onclick="showTab('areas-atendidas', this)">📍 Áreas atendidas</button>
         </div>
 
         <div id="financeiro" class="tab-content active">
@@ -232,6 +242,9 @@
             <h3>Planejamento de visitas</h3>
             <section class="route-planner" aria-label="Configurações da rota de visitas">
                 <div class="route-settings">
+                    <label for="route-service-area">Área da rota
+                        <select id="route-service-area"></select>
+                    </label>
                     <label for="route-date">Data da rota
                         <input id="route-date" type="date">
                     </label>
@@ -251,7 +264,7 @@
                 <button id="generate-visit-route" class="route-generate-button" type="button">Planejar visitas do dia</button>
                 <p id="route-settings-status" class="route-settings-status" role="status" aria-live="polite"></p>
             </section>
-            <p class="route-note">A agenda considera o dia preferido, o intervalo desde a última visita e o horário de almoço de cada cliente; a ordem inicial é alfabética. O deslocamento é uma estimativa ajustável, não considera o trânsito em tempo real. Confira e ajuste o trajeto no Google Maps.</p>
+            <p class="route-note">A agenda considera a área selecionada, o dia preferido, o intervalo desde a última visita e o horário de almoço de cada cliente; a ordem inicial é alfabética dentro da área. O deslocamento é uma estimativa ajustável, não considera o trânsito em tempo real. Confira e ajuste o trajeto no Google Maps.</p>
             <div id="visit-route-content">Selecione uma data e planeje as visitas.</div>
             <h3>Rota de entregas de pedidos</h3>
             <div id="rotas-content">Nenhum pedido com endereço salvo.</div>
@@ -271,6 +284,9 @@
                     </label>
                     <label for="customer-address">Endereço
                         <input id="customer-address" type="text" autocomplete="street-address">
+                    </label>
+                    <label for="customer-service-area">Área atendida *
+                        <select id="customer-service-area" required></select>
                     </label>
                     <label for="customer-visit-frequency">Visitar a cada (dias)
                         <input id="customer-visit-frequency" type="number" min="1" max="365" step="1" value="30" required>
@@ -305,6 +321,18 @@
                 <input id="customer-search" class="customer-search" type="search" placeholder="Buscar cliente por nome, telefone ou endereço" aria-label="Buscar clientes">
                 <div id="customers-content"></div>
             </div>
+        </div>
+
+        <div id="areas-atendidas" class="tab-content">
+                <h3>Áreas atendidas</h3>
+                <p>Cadastre bairros e regiões para organizar os clientes próximos e planejar visitas por área.</p>
+                <form id="service-area-form" class="service-area-form">
+                    <label for="service-area-name">Nova área, bairro ou região
+                        <input id="service-area-name" type="text" maxlength="80" placeholder="Ex.: Cidade Nova" required>
+                    </label>
+                    <button type="submit">Adicionar área</button>
+                </form>
+                <div id="service-areas-content"></div>
         </div>
     </div>
 
@@ -418,9 +446,45 @@
 
     const ordersStorageKey = 'gerador-pedidos-vassouras';
     const customersStorageKey = 'gerador-clientes-vassouras';
+    const serviceAreasStorageKey = 'gerador-areas-atendimento-vassouras';
+    const defaultServiceAreas = ['Manaus', 'Estrada de Manacapuru', 'Manacapuru'];
+    const unassignedServiceAreaValue = '__unassigned__';
+    let serviceAreas = loadServiceAreas();
     let customers = loadCustomers();
+    customers.forEach(customer => {
+        if (customer.serviceArea && !serviceAreas.some(area => normalizeCustomerName(area) === normalizeCustomerName(customer.serviceArea))) {
+            serviceAreas.push(customer.serviceArea);
+        }
+    });
     let selectedCustomerId = '';
     let selectedCustomerData = null;
+
+    function loadServiceAreas() {
+        try {
+            const savedAreas = JSON.parse(localStorage.getItem(serviceAreasStorageKey) || 'null');
+            if (savedAreas === null) return [...defaultServiceAreas];
+            if (!Array.isArray(savedAreas) || savedAreas.some(area => typeof area !== 'string' || !area.trim())) {
+                throw new Error('invalid-service-area-list');
+            }
+            return [...new Set(savedAreas.map(area => area.trim()))];
+        } catch (error) {
+            console.error('Não foi possível carregar as áreas atendidas:', error);
+            alert('Não foi possível carregar as áreas atendidas salvas neste navegador.');
+            return [...defaultServiceAreas];
+        }
+    }
+
+    function saveServiceAreas(updatedAreas) {
+        try {
+            localStorage.setItem(serviceAreasStorageKey, JSON.stringify(updatedAreas));
+            serviceAreas = updatedAreas;
+            return true;
+        } catch (error) {
+            console.error('Não foi possível salvar as áreas atendidas:', error);
+            alert('Não foi possível salvar as áreas atendidas neste navegador. Verifique o espaço disponível.');
+            return false;
+        }
+    }
 
     function loadCustomers() {
         try {
@@ -445,7 +509,8 @@
                 lunchBreak: customer.lunchBreak === true,
                 lunchStart: typeof customer.lunchStart === 'string' ? customer.lunchStart : '12:00',
                 lunchEnd: typeof customer.lunchEnd === 'string' ? customer.lunchEnd : '13:00',
-                lastVisitDate: typeof customer.lastVisitDate === 'string' ? customer.lastVisitDate : ''
+                lastVisitDate: typeof customer.lastVisitDate === 'string' ? customer.lastVisitDate : '',
+                serviceArea: typeof customer.serviceArea === 'string' ? customer.serviceArea.trim() : ''
             }));
         } catch (error) {
             console.error('Não foi possível carregar os clientes salvos:', error);
@@ -514,6 +579,117 @@
         return name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
     }
 
+    function renderServiceAreaOptions() {
+        const customerSelect = document.getElementById('customer-service-area');
+        const routeSelect = document.getElementById('route-service-area');
+        const selectedCustomerArea = customerSelect.value;
+        const selectedRouteArea = routeSelect.value;
+        const sortedAreas = [...serviceAreas].sort((first, second) => first.localeCompare(second, 'pt-BR'));
+
+        customerSelect.replaceChildren();
+        const customerPlaceholder = document.createElement('option');
+        customerPlaceholder.value = '';
+        customerPlaceholder.textContent = 'Selecione uma área';
+        customerSelect.append(customerPlaceholder);
+
+        routeSelect.replaceChildren();
+        const allAreasOption = document.createElement('option');
+        allAreasOption.value = '';
+        allAreasOption.textContent = 'Todas as áreas';
+        routeSelect.append(allAreasOption);
+
+        sortedAreas.forEach(area => {
+            const customerOption = document.createElement('option');
+            customerOption.value = area;
+            customerOption.textContent = area;
+            customerSelect.append(customerOption);
+
+            const routeOption = document.createElement('option');
+            routeOption.value = area;
+            routeOption.textContent = area;
+            routeSelect.append(routeOption);
+        });
+
+        const unassignedOption = document.createElement('option');
+        unassignedOption.value = unassignedServiceAreaValue;
+        unassignedOption.textContent = 'Sem área informada';
+        routeSelect.append(unassignedOption);
+
+        if (sortedAreas.includes(selectedCustomerArea)) customerSelect.value = selectedCustomerArea;
+        if (selectedRouteArea === unassignedServiceAreaValue || sortedAreas.includes(selectedRouteArea)) {
+            routeSelect.value = selectedRouteArea;
+        }
+    }
+
+    function renderServiceAreas() {
+        const container = document.getElementById('service-areas-content');
+        container.replaceChildren();
+        const sortedAreas = [...serviceAreas].sort((first, second) => first.localeCompare(second, 'pt-BR'));
+
+        if (!sortedAreas.length) {
+            container.textContent = 'Nenhuma área cadastrada. Adicione uma área para começar a organizar os clientes.';
+            return;
+        }
+
+        sortedAreas.forEach(area => {
+            const assignedCustomers = customers.filter(customer => customer.serviceArea === area);
+            const card = document.createElement('article');
+            card.className = 'service-area-card';
+
+            const details = document.createElement('div');
+            const name = document.createElement('strong');
+            name.textContent = area;
+            const count = document.createElement('p');
+            count.textContent = `${assignedCustomers.length} cliente(s)`;
+            details.append(name, count);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'service-area-delete';
+            deleteButton.type = 'button';
+            deleteButton.textContent = 'Excluir';
+            deleteButton.disabled = assignedCustomers.length > 0;
+            deleteButton.title = deleteButton.disabled
+                ? 'Mude a área dos clientes antes de excluir esta região.'
+                : 'Excluir área';
+            deleteButton.addEventListener('click', () => deleteServiceArea(area));
+
+            card.append(details, deleteButton);
+            container.append(card);
+        });
+    }
+
+    function addServiceArea(event) {
+        event.preventDefault();
+        const input = document.getElementById('service-area-name');
+        const area = input.value.trim();
+        if (!area) return;
+
+        if (serviceAreas.some(savedArea => normalizeCustomerName(savedArea) === normalizeCustomerName(area))) {
+            alert('Essa área já está cadastrada.');
+            return;
+        }
+
+        if (!saveServiceAreas([...serviceAreas, area])) return;
+        input.value = '';
+        renderServiceAreaOptions();
+        renderServiceAreas();
+        document.getElementById('customer-service-area').value = area;
+    }
+
+    function deleteServiceArea(area) {
+        if (customers.some(customer => customer.serviceArea === area)) {
+            alert('Mude a área dos clientes antes de excluir esta região.');
+            return;
+        }
+        if (!confirm(`Excluir a área "${area}"?`)) return;
+
+        const updatedAreas = serviceAreas.filter(savedArea => savedArea !== area);
+        if (!saveServiceAreas(updatedAreas)) return;
+        renderServiceAreaOptions();
+        renderServiceAreas();
+        renderVisitRoute();
+    }
+
     function renderCustomers() {
         const customerList = document.getElementById('customers-content');
         const customerOptions = document.getElementById('saved-client-options');
@@ -532,7 +708,7 @@
         document.getElementById('customer-count').textContent = String(customers.length);
         customerList.replaceChildren();
         const visibleCustomers = sortedCustomers.filter(customer =>
-            normalizeCustomerName(`${customer.name} ${customer.phone} ${customer.address}`).includes(searchTerm)
+            normalizeCustomerName(`${customer.name} ${customer.phone} ${customer.address} ${customer.serviceArea}`).includes(searchTerm)
         );
 
         if (!visibleCustomers.length) {
@@ -557,6 +733,10 @@
             const address = document.createElement('p');
             address.textContent = `Endereço: ${customer.address || '-'}`;
             card.append(address);
+
+            const serviceArea = document.createElement('p');
+            serviceArea.textContent = `Área atendida: ${customer.serviceArea || 'Não informada'}`;
+            card.append(serviceArea);
 
             const visitDays = document.createElement('p');
             visitDays.textContent = `Dias: ${getWeekdayNames(customer.visitDays).join(', ')} · Intervalo: a cada ${customer.visitFrequencyDays} dias`;
@@ -601,6 +781,7 @@
         const name = document.getElementById('customer-name').value.trim();
         const phone = document.getElementById('customer-phone').value.trim();
         const address = document.getElementById('customer-address').value.trim();
+        const serviceArea = document.getElementById('customer-service-area').value;
         const visitFrequencyDays = Number(document.getElementById('customer-visit-frequency').value);
         const visitDays = [...document.querySelectorAll('input[name="customer-visit-day"]:checked')]
             .map(input => Number(input.value));
@@ -610,6 +791,10 @@
 
         if (!name) {
             alert('Informe o nome do cliente.');
+            return;
+        }
+        if (!serviceAreas.includes(serviceArea)) {
+            alert('Selecione uma área atendida válida. Cadastre a região antes de salvar o cliente.');
             return;
         }
         if (!Number.isInteger(visitFrequencyDays) || visitFrequencyDays < 1 || visitFrequencyDays > 365) {
@@ -646,6 +831,7 @@
             name,
             phone,
             address,
+            serviceArea,
             visitFrequencyDays,
             visitDays,
             lunchBreak,
@@ -660,6 +846,8 @@
         if (!saveCustomers(updatedCustomers)) return;
         resetCustomerForm();
         renderCustomers();
+        renderServiceAreas();
+        renderVisitRoute();
         alert(existingCustomer ? 'Cadastro do cliente atualizado.' : 'Cliente cadastrado com sucesso.');
     }
 
@@ -674,6 +862,7 @@
         document.getElementById('customer-name').value = customer.name;
         document.getElementById('customer-phone').value = customer.phone;
         document.getElementById('customer-address').value = customer.address;
+        document.getElementById('customer-service-area').value = customer.serviceArea;
         document.getElementById('customer-visit-frequency').value = String(customer.visitFrequencyDays);
         document.querySelectorAll('input[name="customer-visit-day"]').forEach(input => {
             input.checked = customer.visitDays.includes(Number(input.value));
@@ -714,6 +903,8 @@
         if (!saveCustomers(updatedCustomers)) return;
         if (document.getElementById('customer-id').value === customerId) resetCustomerForm();
         renderCustomers();
+        renderServiceAreas();
+        renderVisitRoute();
     }
 
     function fillCustomerFromName() {
@@ -1130,8 +1321,11 @@
     function getDueVisitCustomers(routeDate) {
         const date = new Date(`${routeDate}T12:00:00`);
         const weekday = date.getDay();
+        const selectedArea = document.getElementById('route-service-area').value;
         return customers
             .filter(customer => {
+                if (selectedArea === unassignedServiceAreaValue && customer.serviceArea) return false;
+                if (selectedArea && selectedArea !== unassignedServiceAreaValue && customer.serviceArea !== selectedArea) return false;
                 if (!customer.visitDays.includes(weekday)) return false;
                 const nextVisitDate = getNextVisitDate(customer);
                 return !nextVisitDate || routeDate >= nextVisitDate;
@@ -1228,8 +1422,12 @@
 
         const dueCustomers = getDueVisitCustomers(routeDate);
         if (!dueCustomers.length) {
+            const selectedArea = document.getElementById('route-service-area').value;
+            const areaLabel = selectedArea === unassignedServiceAreaValue
+                ? 'sem área informada'
+                : selectedArea;
             output.textContent = customers.length
-                ? 'Nenhum cliente está previsto para visita nesta data. Confira os dias preferidos e o intervalo desde a última visita.'
+                ? `Nenhum cliente está previsto para visita ${selectedArea ? `na área ${areaLabel} ` : ''}nesta data. Confira a região, os dias preferidos e o intervalo desde a última visita.`
                 : 'Cadastre clientes com dias e frequência de visita para gerar uma rota.';
             return;
         }
@@ -1263,7 +1461,11 @@
         });
 
         const summary = document.createElement('p');
-        summary.textContent = `Agenda para ${formatDateForDisplay(routeDate)}: ${scheduledVisits.length} visita(s) planejada(s).`;
+        const selectedArea = document.getElementById('route-service-area').value;
+        const areaLabel = selectedArea === unassignedServiceAreaValue
+            ? ' · Área: sem área informada'
+            : selectedArea ? ` · Área: ${selectedArea}` : '';
+        summary.textContent = `Agenda para ${formatDateForDisplay(routeDate)}${areaLabel}: ${scheduledVisits.length} visita(s) planejada(s).`;
         output.append(summary);
 
         if (!scheduledVisits.length) {
@@ -1418,9 +1620,11 @@
         if (tabId === 'rotas') renderRoutes();
         if (tabId === 'rotas') renderVisitRoute();
         if (tabId === 'clientes') renderCustomers();
+        if (tabId === 'areas-atendidas') renderServiceAreas();
     }
 
     document.getElementById('customer-form').addEventListener('submit', saveCustomer);
+    document.getElementById('service-area-form').addEventListener('submit', addServiceArea);
     document.getElementById('customer-cancel').addEventListener('click', resetCustomerForm);
     document.getElementById('customer-search').addEventListener('input', renderCustomers);
     document.getElementById('customer-lunch-break').addEventListener('change', updateLunchFields);
@@ -1430,6 +1634,7 @@
         if (saveVisitRouteSettings()) renderVisitRoute();
     });
     document.getElementById('route-date').addEventListener('change', renderVisitRoute);
+    document.getElementById('route-service-area').addEventListener('change', renderVisitRoute);
     document.getElementById('share-stock-summary').addEventListener('click', shareAccumulatedStock);
 
     document.querySelectorAll('#client-info-section input, #client-info-section select').forEach(input => {
@@ -1438,6 +1643,7 @@
     });
 
     document.getElementById('route-date').value = formatLocalDate(new Date());
+    renderServiceAreaOptions();
     document.getElementById('route-start-time').value = visitRouteSettings.startTime;
     document.getElementById('route-end-time').value = visitRouteSettings.endTime;
     document.getElementById('route-visit-duration').value = String(visitRouteSettings.visitDuration);
@@ -1447,6 +1653,7 @@
     renderOrderHistory();
     renderRoutes();
     renderCustomers();
+    renderServiceAreas();
     renderVisitRoute();
 </script>
 </body>
