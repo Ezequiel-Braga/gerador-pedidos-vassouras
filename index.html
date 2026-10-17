@@ -30,6 +30,14 @@
         .saved-order-items { margin: 8px 0; padding-left: 22px; }
         .share-order-button { padding: 9px 14px; border: 0; border-radius: 5px; background: #25d366; color: #fff; cursor: pointer; }
         .share-order-button:hover { background: #1eae54; }
+        .saved-order-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .saved-order-actions button, #cancel-order-edit { padding: 9px 14px; border: 0; border-radius: 5px; color: #fff; cursor: pointer; }
+        .edit-order-button { background: #007bff; }
+        .delete-order-button { background: #d9534f; }
+        #order-edit-controls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+        #order-edit-controls[hidden] { display: none; }
+        #order-edit-controls p { margin: 0; font-weight: 700; }
+        #cancel-order-edit { background: #6c757d; }
         .customer-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
         .customer-form h4, .customer-list h4 { margin: 0 0 12px; }
         .customer-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -194,9 +202,13 @@
         <button type="button" class="reset-prices-button" onclick="resetProductPrices()">Restaurar preços originais</button>
     </div>
 
+    <div id="order-edit-controls" hidden>
+        <p>Editando pedido salvo. Faça as alterações no formulário e salve.</p>
+        <button id="cancel-order-edit" type="button" onclick="cancelSavedOrderEdit()">Cancelar edição</button>
+    </div>
     <div class="action-buttons">
-        <button onclick="saveAndFinalizeOrder('financeiro')">💾 Salvar e Copiar Resumo de Venda</button>
-        <button onclick="saveAndFinalizeOrder('separacao')">📦 Salvar e Copiar Resumo de Separação</button>
+        <button id="save-financial-order" onclick="saveAndFinalizeOrder('financeiro')">💾 Salvar e Copiar Resumo de Venda</button>
+        <button id="save-separation-order" onclick="saveAndFinalizeOrder('separacao')">📦 Salvar e Copiar Resumo de Separação</button>
         <button onclick="sendWhatsApp()">📱 Enviar Resumo de Separação (WhatsApp)</button>
     </div>
     
@@ -458,6 +470,8 @@
     });
     let selectedCustomerId = '';
     let selectedCustomerData = null;
+    let editingOrderId = null;
+    let editingOrderPrices = {};
 
     function loadServiceAreas() {
         try {
@@ -969,9 +983,10 @@
         updateQuote();
     }
 
-    function getSelectedItems() {
+    function getSelectedItems(priceOverrides = {}) {
         return Object.values(products).flat().map(product => ({
             ...product,
+            price: priceOverrides[product.id] ?? product.price,
             quantity: Math.max(0, Number.parseInt(document.getElementById(`qty-${product.id}`).value, 10) || 0)
         })).filter(product => product.quantity > 0);
     }
@@ -981,7 +996,7 @@
     }
 
     function buildOrder() {
-        const items = getSelectedItems();
+        const items = getSelectedItems(editingOrderPrices);
         const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
         const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const payment = document.getElementById('paymentMethod');
@@ -1141,10 +1156,89 @@
 
     function saveOrder(order) {
         const savedOrders = getSavedOrders();
-        savedOrders.unshift(order);
+        if (editingOrderId) {
+            const orderIndex = savedOrders.findIndex(savedOrder => savedOrder.id === editingOrderId);
+            if (orderIndex === -1) {
+                alert('Não foi possível encontrar esse pedido no histórico. Atualize a página e tente novamente.');
+                return false;
+            }
+            savedOrders[orderIndex] = {
+                ...order,
+                id: savedOrders[orderIndex].id,
+                date: savedOrders[orderIndex].date,
+                delivered: savedOrders[orderIndex].delivered
+            };
+        } else {
+            savedOrders.unshift(order);
+        }
         localStorage.setItem(ordersStorageKey, JSON.stringify(savedOrders));
+        editingOrderId = null;
+        editingOrderPrices = {};
+        updateOrderEditControls();
         renderOrderHistory();
         renderRoutes();
+        return true;
+    }
+
+    function updateOrderEditControls() {
+        const isEditing = Boolean(editingOrderId);
+        document.getElementById('order-edit-controls').hidden = !isEditing;
+        document.getElementById('save-financial-order').textContent = isEditing
+            ? '💾 Atualizar e Copiar Resumo de Venda'
+            : '💾 Salvar e Copiar Resumo de Venda';
+        document.getElementById('save-separation-order').textContent = isEditing
+            ? '📦 Atualizar e Copiar Resumo de Separação'
+            : '📦 Salvar e Copiar Resumo de Separação';
+    }
+
+    function editSavedOrder(orderId) {
+        const order = getSavedOrders().find(savedOrder => savedOrder.id === orderId);
+        if (!order) {
+            alert('Não foi possível encontrar esse pedido no histórico.');
+            return;
+        }
+
+        editingOrderId = order.id;
+        editingOrderPrices = Object.fromEntries((order.items || []).map(item => [item.id, item.price]));
+        document.getElementById('clientName').value = order.client || '';
+        document.getElementById('clientPhone').value = order.phone || '';
+        document.getElementById('clientAddress').value = order.address || '';
+        document.getElementById('clientSeller').value = order.seller || '';
+        const paymentSelect = document.getElementById('paymentMethod');
+        const paymentOption = [...paymentSelect.options].find(option =>
+            option.text === order.payment || option.value === order.payment
+        );
+        paymentSelect.value = paymentOption?.value || '';
+        Object.values(products).flat().forEach(product => {
+            document.getElementById(`qty-${product.id}`).value = '0';
+        });
+        (order.items || []).forEach(item => {
+            const quantityInput = document.getElementById(`qty-${item.id}`);
+            if (quantityInput) quantityInput.value = String(item.quantity);
+        });
+        selectedCustomerId = '';
+        selectedCustomerData = null;
+        updateOrderEditControls();
+        updateQuote();
+        document.getElementById('client-info-section').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('clientName').focus({ preventScroll: true });
+    }
+
+    function cancelSavedOrderEdit() {
+        editingOrderId = null;
+        editingOrderPrices = {};
+        document.getElementById('clientName').value = '';
+        document.getElementById('clientPhone').value = '';
+        document.getElementById('clientAddress').value = '';
+        document.getElementById('clientSeller').value = '';
+        document.getElementById('paymentMethod').value = '';
+        Object.values(products).flat().forEach(product => {
+            document.getElementById(`qty-${product.id}`).value = '0';
+        });
+        selectedCustomerId = '';
+        selectedCustomerData = null;
+        updateOrderEditControls();
+        updateQuote();
     }
 
     function validateOrder(order) {
@@ -1162,9 +1256,10 @@
     async function saveAndFinalizeOrder(type) {
         const order = buildOrder();
         if (!validateOrder(order)) return;
+        const wasEditing = Boolean(editingOrderId);
 
         try {
-            saveOrder(order);
+            if (!saveOrder(order)) return;
         } catch (error) {
             alert('Não foi possível salvar o pedido neste navegador. Verifique o armazenamento local.');
             return;
@@ -1175,8 +1270,8 @@
             : getFinancialSummary(order);
         const copied = await copyText(summary);
         alert(copied
-            ? 'Pedido salvo e resumo copiado.'
-            : 'Pedido salvo, mas não foi possível copiar o resumo.');
+            ? `Pedido ${wasEditing ? 'atualizado' : 'salvo'} e resumo copiado.`
+            : `Pedido ${wasEditing ? 'atualizado' : 'salvo'}, mas não foi possível copiar o resumo.`);
     }
 
     function sendWhatsApp() {
@@ -1264,9 +1359,47 @@
             shareButton.textContent = '📱 Compartilhar pedido no WhatsApp';
             shareButton.addEventListener('click', () => shareSavedOrder(order.id));
 
-            card.append(total, shareButton);
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'edit-order-button';
+            editButton.textContent = '✏️ Editar pedido';
+            editButton.addEventListener('click', () => editSavedOrder(order.id));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'delete-order-button';
+            deleteButton.textContent = '🗑️ Excluir pedido';
+            deleteButton.addEventListener('click', () => deleteSavedOrder(order.id));
+
+            const actions = document.createElement('div');
+            actions.className = 'saved-order-actions';
+            actions.append(shareButton, editButton, deleteButton);
+            card.append(total, actions);
             historyContainer.append(card);
         });
+    }
+
+    function deleteSavedOrder(orderId) {
+        const savedOrders = getSavedOrders();
+        const order = savedOrders.find(savedOrder => savedOrder.id === orderId);
+        if (!order) {
+            alert('Não foi possível encontrar esse pedido no histórico.');
+            return;
+        }
+        if (!confirm(`Excluir o pedido de ${order.client || 'Cliente'}? Esta ação não pode ser desfeita.`)) return;
+
+        try {
+            localStorage.setItem(ordersStorageKey, JSON.stringify(
+                savedOrders.filter(savedOrder => savedOrder.id !== orderId)
+            ));
+        } catch (error) {
+            alert('Não foi possível excluir o pedido neste navegador.');
+            return;
+        }
+
+        if (editingOrderId === orderId) cancelSavedOrderEdit();
+        renderOrderHistory();
+        renderRoutes();
     }
 
     function getWeekdayNames(days) {
